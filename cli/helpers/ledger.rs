@@ -173,4 +173,35 @@ impl<N: Network> Ledger<N> {
             &mut rand::thread_rng(),
         )
     }
+
+    pub fn faucet_transfer(&self, to: &Address<N>, amount: u64) -> Result<Transaction<N>> {
+        // Fetch the unspent record with the least gates.
+        let record = self
+            .ledger
+            .read()
+            .find_records(&self.view_key, RecordsFilter::AllUnspent(self.private_key))
+            .filter(|(_, record)| !record.gates().is_zero())
+            .max_by(|(_, a), (_, b)| (**a.gates()).cmp(&**b.gates()));
+
+        // Prepare the record.
+        let record = match record {
+            Some((_, record)) => record,
+            None => bail!("The Aleo account has no records to spend."),
+        };
+
+        // Create a new transaction.
+        Transaction::execute(
+            &self.ledger.read().vm(),
+            &self.private_key,
+            &ProgramID::from_str("credits.aleo")?,
+            Identifier::from_str("transfer")?,
+            &[
+                Value::Record(record),
+                Value::from_str(&format!("{to}"))?,
+                Value::from_str(&format!("{amount}u64"))?,
+            ],
+            None,
+            &mut rand::thread_rng(),
+        )
+    }
 }

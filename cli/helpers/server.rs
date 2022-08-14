@@ -1,5 +1,5 @@
 use crate::helpers::Ledger;
-use snarkvm::prelude::{Field, GraphKey, Network, RecordsFilter, Transaction, ViewKey};
+use snarkvm::prelude::{Field, GraphKey, Network, RecordsFilter, Transaction, ViewKey, Address};
 
 use anyhow::Result;
 use core::marker::PhantomData;
@@ -129,6 +129,15 @@ impl<N: Network> Server<N> {
             .and(with(ledger_sender.clone()))
             .and_then(Self::transaction_broadcast);
 
+        // GET /testnet3/faucet
+        let faucet = warp::get()
+            .and(warp::path!("testnet3" / "faucet"))
+            .and(warp::body::content_length_limit(128))
+            .and(warp::body::json())
+            .and(with(ledger_sender.clone()))
+            .and(with(ledger.clone()))
+            .and_then(Self::faucet);
+
         // Initialize a runtime.
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -151,7 +160,8 @@ impl<N: Network> Server<N> {
                     .or(records_all)
                     .or(records_spent)
                     .or(records_unspent)
-                    .or(transaction_broadcast);
+                    .or(transaction_broadcast)
+                    .or(faucet);
                 // Start the server.
                 println!("\n🌐 Server is running at http://0.0.0.0:4180");
                 warp::serve(routes).run(([0, 0, 0, 0], 4180)).await;
@@ -263,6 +273,24 @@ impl<N: Network> Server<N> {
         transaction: Transaction<N>,
         ledger_sender: LedgerSender<N>,
     ) -> Result<impl Reply, Rejection> {
+        // Send the transaction to the ledger.
+        match ledger_sender
+            .send(LedgerRequest::TransactionBroadcast(transaction))
+            .await
+        {
+            Ok(()) => Ok("OK"),
+            Err(error) => Err(reject::custom(ServerError::Request(format!("{error}")))),
+        }
+    }
+
+    async fn faucet(
+        address: Address<N>,
+        ledger_sender: LedgerSender<N>,
+        ledger: Arc<Ledger<N>>
+    ) -> Result<impl Reply, Rejection> {
+
+        let transaction = ledger.faucet_transfer(&address,100).unwrap();
+        println!("transaction id: {}", transaction.id());
         // Send the transaction to the ledger.
         match ledger_sender
             .send(LedgerRequest::TransactionBroadcast(transaction))

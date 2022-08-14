@@ -46,6 +46,7 @@ dependencies = [
  "snarkvm",
  "thiserror",
  "tokio",
+ "ureq",
  "warp",
 ]
 
