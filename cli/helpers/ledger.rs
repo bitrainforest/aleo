@@ -33,6 +33,11 @@ use snarkvm::prelude::{
     VM,
 };
 
+use snarkvm::{
+    circuit::Aleo,
+    prelude::Testnet3,
+};
+
 use anyhow::{bail, ensure, Result};
 use core::str::FromStr;
 use parking_lot::RwLock;
@@ -69,12 +74,17 @@ impl<N: Network> Ledger<N> {
         // Initialize an RNG.
         let rng = &mut ::rand::thread_rng();
         // Initialize the store.
-        let store = ProgramStore::<_, InternalStorage<_>>::open()?;
-        // Create a genesis block.
-        let genesis = Block::genesis(&VM::new(store)?, private_key, rng)?;
+        let store = ProgramStore::<_, InternalStorage<_>>::open(None)?;
 
-        // Initialize the ledger.
-        let ledger = Arc::new(RwLock::new(InternalLedger::new_with_genesis(&genesis, address)?));
+
+        // Create a genesis block.
+        // modified by jianghan for rebuild credits.aleo's parameters
+        //let genesis = Block::genesis(&VM::new(store)?, private_key, rng)?;
+        let genesis = Block::genesis(&VM::setup::<snarkvm::circuit::AleoV0>(store)?, private_key, rng)?;
+
+        //
+        //Initialize the ledger.
+        let ledger = Arc::new(RwLock::new(InternalLedger::new_with_genesis(&genesis, address, None/* std::option::Option<u16> */)?));
 
         // Initialize the additional routes.
         let additional_routes = {
