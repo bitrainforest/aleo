@@ -77,14 +77,21 @@ impl<N: Network> Ledger<N> {
         let store = ProgramStore::<_, InternalStorage<_>>::open(None)?;
 
 
+        println!("[**]begin construct genesis ...");
         // Create a genesis block.
         // modified by jianghan for rebuild credits.aleo's parameters
         //let genesis = Block::genesis(&VM::new(store)?, private_key, rng)?;
         let genesis = Block::genesis(&VM::setup::<snarkvm::circuit::AleoV0>(store)?, private_key, rng)?;
 
+        println!("[**]construct genesis success !");
+
         //
         //Initialize the ledger.
-        let ledger = Arc::new(RwLock::new(InternalLedger::new_with_genesis(&genesis, address, None/* std::option::Option<u16> */)?));
+        //modified by jianghan : use new_with_genesis_2 (internal call VM::setup instead VM::new)
+        let ledger = Arc::new(RwLock::new(InternalLedger::new_with_genesis_2(&genesis, address, None/* std::option::Option<u16> */)?));
+
+
+        println!("[**] ledger create success !");
 
         // Initialize the additional routes.
         let additional_routes = {
@@ -113,11 +120,15 @@ impl<N: Network> Ledger<N> {
                 .or(get_development_address)
         };
 
+        println!("[**]additional routes ok! ");
+
         // Initialize a runtime.
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .thread_stack_size(8 * 1024 * 1024)
             .build()?;
+
+        println!("[**]runtime ok");
 
         // Initialize the server.
         let ledger_clone = ledger.clone();
@@ -125,6 +136,8 @@ impl<N: Network> Ledger<N> {
             // Start the server.
             InternalServer::<N>::start(ledger_clone, Some(additional_routes), Some(4180))
         })?;
+
+        println!("[**] server start ok!");
 
         // Return the ledger.
         Ok(Arc::new(Self {
@@ -193,6 +206,7 @@ impl<N: Network> Ledger<N> {
         )?;
         // Verify.
         assert!(self.ledger.read().vm().verify(&transaction));
+        println!("[Verify deploy success]");
         // Return the transaction.
         Ok(transaction)
     }

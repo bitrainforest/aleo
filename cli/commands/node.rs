@@ -43,6 +43,8 @@ impl Node {
                 // Derive the program directory path.
                 let directory = std::env::current_dir()?;
 
+                println!("\n[step ---- 1]");
+
                 // Ensure the directory path exists.
                 ensure!(
                     directory.exists(),
@@ -60,6 +62,8 @@ impl Node {
                 // Open the manifest file.
                 let manifest = Manifest::open(&directory)?;
 
+                println!("\n[step ---- 2]");
+                
                 println!(
                     "⏳ Starting a local development node for '{}' (in-memory)...\n",
                     manifest.program_id().to_string().bold()
@@ -68,8 +72,12 @@ impl Node {
                 // Retrieve the private key.
                 let private_key = manifest.development_private_key();
 
+                println!("\n[step ---- 3]");
+                
                 // Initialize the ledger.
                 let ledger = Arc::new(Ledger::<Network>::load(private_key)?);
+
+                println!("\n[step ---- 4]");
 
                 // Deploy the local program.
                 if !nodeploy {
@@ -81,6 +89,7 @@ impl Node {
                     // Prepare the imports directory.
                     let imports_directory = package.imports_directory();
 
+                    println!("\n[step ---- 5]");
                     // Load all of the imported programs (in order of imports).
                     let programs = program
                         .imports()
@@ -93,6 +102,7 @@ impl Node {
                         })
                         .collect::<Result<Vec<_>>>()?;
 
+                    println!("\n[step ---- 6]");
                     // Deploy the imported programs (in order of imports), and the main program.
                     for program in programs.iter().chain([program.clone()].iter()) {
                         println!(
@@ -101,7 +111,9 @@ impl Node {
                         );
 
                         // Create a deployment transaction.
+                        println!("\n[create_deploy] begin ...");
                         let transaction = ledger.create_deploy(program, 1)?;
+                        println!("\n[create_deploy] success\n\n");
                         // Add the transaction to the memory pool.
                         ledger.add_to_memory_pool(transaction.clone())?;
 
